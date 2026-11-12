@@ -1,12 +1,12 @@
 ---
-description: Install 10 Levels of Jev — prerequisites, the web dependencies, the OpenRouter key, pi for the agentic levels, and a first offline test run
+description: Install 10 Levels of Jev — prerequisites, the web dependencies, the OpenRouter key, Claude Code sign-in for the agentic levels, and a first offline test run
 ---
 
 # Install 10 Levels of Jev
 
 ## Purpose
 
-Set up the 10 Levels of Jev lab for development. Checks the toolchain (Node 24, bun, just, pi), installs the Vue lab's dependencies, confirms the Jev credential without displaying it, verifies the sandbox and the pi settings the agentic levels depend on, and runs the offline suite. This is an interactive, agentic process — ask the user when choices are needed.
+Set up the 10 Levels of Jev lab for development. Checks the toolchain (Node 24, bun, just, Claude Code), installs the Vue lab's dependencies, confirms the Jev credential without displaying it, verifies the sandbox and the Claude Code hook and MCP config the agentic levels depend on, and runs the offline suite. This is an interactive, agentic process — ask the user when choices are needed.
 
 ## Variables
 
@@ -14,7 +14,7 @@ SOURCE_REPO: The directory this command is running from
 APP_DIR: `apps/ten-levels`
 WEB_DIR: `apps/ten-levels/web`
 SANDBOX_DIR: `apps/ten-levels/sandbox`
-EXTENSIONS_DIR: `apps/ten-levels/extensions`
+CLAUDE_DIR: `apps/ten-levels/claude`
 ENV_FILE: `.env` at the repo root (loaded by the justfile)
 ENV_SAMPLE: `.env.sample`
 
@@ -24,11 +24,11 @@ ENV_SAMPLE: `.env.sample`
 apps/ten-levels/
 ├── src/core/          # the Jev wire contract and client (mock, OpenRouter, TypeSafe)
 ├── src/levels/        # level01 .. level10, one file per option
-├── extensions/        # pi extensions for levels 6 to 10, plus report.ts
-├── sandbox/           # the repo the agents work in; .pi/settings.json sets keepRecentTokens
-├── server/            # the API and the pi session manager, node:http only
+├── claude/            # Claude Code hooks (L6, L7) and the MCP server (L7 to L10), plus config.ts
+├── sandbox/           # the repo the agents work in
+├── server/            # the API and the Claude Code session manager, node:http only
 ├── web/               # the Vue lab; bun installs its dependencies
-└── tests/             # 201 offline tests on the mock, 10 live tests
+└── tests/             # 215 offline tests on the mock, 10 live tests
 justfile               # every recipe; loads .env
 ```
 
@@ -41,7 +41,7 @@ justfile               # every recipe; loads .env
 - Do NOT read or display API key values — only confirm they are set.
 - Never start `just web` or `just dev` from this command; only verify readiness.
 - The app itself has zero runtime dependencies. Only `web/` needs an install.
-- Levels 1 to 5 work offline on the mock. Levels 6 to 10 need both `pi` and an OpenRouter key; if either is missing, say so and continue, the rest of the lab still works.
+- Levels 1 to 5 work offline on the mock. Levels 6 to 10 need Claude Code signed in with a subscription and an OpenRouter key; if either is missing, say so and continue, the rest of the lab still works.
 
 ## Workflow
 
@@ -56,13 +56,13 @@ Then the standard tools:
 
 3. **bun**: `command -v bun`. Builds and serves the Vue lab. Missing: `curl -fsSL https://bun.sh/install | bash`.
 4. **git**: `command -v git`. Each agent session initializes a git copy of the sandbox so `git diff` works inside it.
-5. **pi 0.85.1 or later**: `command -v pi && pi --version`. Runs levels 6 to 10. Missing: `npm install -g @earendil-works/pi-coding-agent`, docs at https://github.com/earendil-works/pi-mono. Not a gate; report it and continue.
+5. **Claude Code 2.1.295 or later, signed in with a subscription**: `command -v claude && claude --version`. Runs levels 6 to 10 on your login, never on `ANTHROPIC_API_KEY`. Missing: https://code.claude.com. Do not run a prompt to test the login. Not a gate; report it and continue.
 
 ### Step 2 — Check Environment
 
 6. Check whether `OPENROUTER_API_KEY` is set in the shell or in `ENV_FILE`: `grep -q '^OPENROUTER_API_KEY=' .env 2>/dev/null || [ -n "$OPENROUTER_API_KEY" ]`. Report set or not set, never the value.
 7. If not set, ask the user whether they have an OpenRouter key (https://openrouter.ai/keys). If yes, ask them to paste it into `ENV_FILE` themselves, or copy `ENV_SAMPLE` to `ENV_FILE` for them and tell them which line to fill. If no, say that levels 1 to 5 run offline on the mock and levels 6 to 10 stay unavailable until a key exists.
-8. Optionally note `TYPESAFE_API_KEY` (direct TypeSafe backend, takes precedence over OpenRouter) and `JEV_AGENT_MODEL` (the pi model for levels 6 to 10, default `openrouter/google/gemini-3.8-flash`). Do not ask for them.
+8. Optionally note `TYPESAFE_API_KEY` (direct TypeSafe backend, takes precedence over OpenRouter) and `JEV_AGENT_MODEL` (the Claude Code model for levels 6 to 10: `haiku` by default, `sonnet`, or a full model ID). Do not ask for them.
 
 ### Step 3 — Install Dependencies
 
@@ -70,17 +70,17 @@ Then the standard tools:
 
 ### Step 4 — Verify Configuration
 
-10. `SANDBOX_DIR/.pi/settings.json` exists and contains `keepRecentTokens`. Without it Level 7's compaction never has material.
-11. `EXTENSIONS_DIR` contains six files: `report.ts`, `jev-guard.ts`, `jev-compact.ts`, `ask-jev-file.ts`, `ask-jev-files.ts`, `ask-jev.ts`. List any missing.
+10. `CLAUDE_DIR` contains `lib.ts`, `config.ts`, `tools.ts`, `transcript.ts`, `compact-eval.ts`, `hooks/guard.ts`, `hooks/compact.ts`, and `mcp/server.ts`. List any missing.
+11. `node claude/config.ts 6 settings` and `node claude/config.ts 10 mcp` (run in `APP_DIR`) each print valid JSON. Do not display environment values.
 12. `SANDBOX_DIR/src/domain/billing.ts` contains `Math.floor` on the prorate line. That is the failing test on purpose; if it reads `Math.round` someone fixed the pristine sandbox and levels 7, 9, and 10 lose their bug. Report it, do not change it.
 13. `apps/ten-levels/web/public/heroes/` contains ten `level-N.svg` files; if not, note that `just heroes` regenerates them.
 
 ### Step 5 — Verify Readiness
 
-14. Run `just test` from the repo root. Expect 201 passing, 0 failures, and 10 live tests skipped; report the pass count. This uses the mock and needs no key.
+14. Run `just test` from the repo root. Expect 215 passing, 0 failures, and 10 live tests skipped; report the pass count. This uses the mock and needs no key.
 15. Run `cd SANDBOX_DIR && npm test` and expect exactly one failure, the proration test. Report pass and fail counts.
 16. Confirm `just --list` shows `web`, `dev`, `jev1` through `jev10`, `test`, `test-live`, `demo`, `heroes`, `lint`. Do not run `web` or `dev`.
-17. If pi is installed, run `pi --version` once more and confirm it prints 0.85.1 or later.
+17. If Claude Code is installed, confirm `claude --version` prints 2.1.295 or later.
 
 ### Step 6 — Report
 
@@ -95,4 +95,4 @@ just test-live      # 10 live tests against real Jev, needs OPENROUTER_API_KEY
 just demo           # every level, every option, on the mock
 ```
 
-If pi or the key is missing, say which levels are unavailable and what to install to unlock them.
+If Claude Code or the key is missing, say which levels are unavailable and what to install to unlock them.

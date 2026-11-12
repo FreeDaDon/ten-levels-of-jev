@@ -5,7 +5,7 @@ import { answerHTML, esc } from "../lib/viz";
 import { MODELS, countTokens, money } from "../lib/cost";
 
 /**
- * The agent window for levels 6 to 10. One real pi session per mount. You prompt it, the box
+ * The agent window for levels 6 to 10. One real Claude Code session per mount. You prompt it, the box
  * locks, Go becomes Stop, and the stream fills with one line per thing that happened: your
  * prompt, the agent's text, each tool call, each Jev call, the level's hook decision. Click a
  * line for the details. The header shows the model, the two costs, and the context bar.
@@ -50,7 +50,7 @@ const listEl = ref<HTMLDivElement | null>(null);
 let unsubscribe: (() => void) | null = null;
 const toolRows = new Map<string, Row>();
 
-const shortModel = computed(() => model.value.replace(/^openrouter\//, ""));
+const shortModel = computed(() => model.value);
 const ctxLabel = computed(() => (contextTokens.value === null ? "context, waiting for the first reply" : `${contextTokens.value.toLocaleString("en-US")} tokens in context, ${(contextPct.value ?? 0).toFixed(1)}% of ${fmt(contextWindow.value)}`));
 const fmt = (n: number | null) => (n === null ? "" : n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 1000)}k` : String(n));
 const first = (s: string, n = 110) => { const line = (s ?? "").trim().split("\n")[0] ?? ""; return line.length > n ? line.slice(0, n - 1) + "…" : line; };
@@ -142,7 +142,7 @@ function onItem({ event, data }: AgentItem) {
       } else if (d.kind === "ledger") {
         add({ kind: "system", tag: "ledger", title: d.summary, details: d });
       } else if (d.kind === "error") {
-        add({ kind: "error", tag: "error", title: `${d.hook ?? "extension"}: ${d.message}`, details: d });
+        add({ kind: "error", tag: "error", title: `${d.hook ?? "hook"}: ${d.message}`, details: d });
       } else {
         add({ kind: "system", tag: d.kind, title: first(JSON.stringify(d)), details: d });
       }
@@ -153,7 +153,6 @@ function onItem({ event, data }: AgentItem) {
         ? `${fmt(data.result.tokensBefore ?? null)} tokens to about ${fmt(data.result.estimatedTokensAfter ?? null)}`
         : `did not run: ${data.error ?? data.errorMessage ?? (data.aborted ? "aborted" : "no result")}`, details: data });
       return;
-    case "extension_error": add({ kind: "error", tag: "extension", title: first(String(data.error ?? data.message ?? "error")), details: data }); return;
     case "error": add({ kind: "error", tag: "error", title: data.message, details: data }); return;
     case "closed": running.value = false; if (!starting.value) add({ kind: "system", tag: "session", title: "Session ended", details: data }); return;
     default: return;

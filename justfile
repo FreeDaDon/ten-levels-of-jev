@@ -73,7 +73,7 @@ demo:
 demo-live:
     cd "{{app}}" && npm run -s demo:live
 
-# 201 offline tests on the mock.
+# 215 offline tests on the mock.
 test:
     cd "{{app}}" && npm run -s test
 

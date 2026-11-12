@@ -6,7 +6,7 @@
  *   POST /api/run/:n?option=A body { input } -> SSE stream: option-start, then per Jev call
  *                             request (state + questions) and response (typed answers + meta),
  *                             per-option events (tick, beam-step, agent-*), decision, level-done
- *   POST /api/agent/start     body { level, option, config } -> { id, model }; spawns pi in RPC mode
+ *   POST /api/agent/start     body { level, option, config } -> { id, model }; starts a Claude Code session, one `claude -p` per prompt
  *   GET  /api/agent/:id/events SSE: every session event so far, then live (agent, tool, jev, hook, stats)
  *   POST /api/agent/:id/prompt body { message }
  *   POST /api/agent/:id/abort
@@ -28,9 +28,9 @@ import { extname, join, normalize } from "node:path";
 import { sharedJev } from "../src/core/client.ts";
 import { SCENARIOS } from "./scenarios.mjs";
 import * as agents from "./agent-session.mjs";
+import { LEVEL_HOOKS } from "../claude/config.ts";
 
 const DIST = fileURLToPath(new URL("../web/dist/", import.meta.url));
-const EXT_DIR = fileURLToPath(new URL("../extensions/", import.meta.url));
 const SANDBOX = fileURLToPath(new URL("../sandbox/", import.meta.url));
 const LEVELS_DIR = fileURLToPath(new URL("../src/levels/", import.meta.url));
 const PORT = Number(process.env.PORT || 4399);
@@ -84,7 +84,7 @@ const server = http.createServer(async (req, res) => {
     return res.end(JSON.stringify({ provider: client.provider, live: client.isLive, calls: client.calls }));
   }
 
-  // Agent sessions: one pi process per run, driven over RPC.
+  // Agent sessions: one Claude Code conversation per run, one claude -p per prompt.
   if (url.pathname === "/api/agent/start" && req.method === "POST") {
     let body;
     try { body = await readJson(req); } catch { res.writeHead(400); return res.end("{}"); }
@@ -96,7 +96,7 @@ const server = http.createServer(async (req, res) => {
     }
     const session = agents.start({
       level: Number(body.level), option: option.key,
-      extension: join(EXT_DIR, option.extension), tools: option.tools, cwd: SANDBOX,
+      tools: option.tools, cwd: SANDBOX,
       config: body.config ?? {},
     });
     res.writeHead(200, { "Content-Type": "application/json" });
@@ -137,7 +137,7 @@ const server = http.createServer(async (req, res) => {
     const n = Number(levelMatch[1]);
     const options = await Promise.all(SCENARIOS[n].options.map(async (o) => ({
       key: o.key, name: o.name, file: `src/levels/${o.file}`, inputs: o.inputs, call: o.call,
-      extension: o.extension, tools: o.tools,
+      hooks: LEVEL_HOOKS[n], tools: o.tools,
       code: stripComments(await readFile(join(LEVELS_DIR, o.file), "utf8")),
     })));
     res.writeHead(200, { "Content-Type": "application/json" });

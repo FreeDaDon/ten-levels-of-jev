@@ -16,7 +16,7 @@ import type { JevUsage } from "../lib/cost";
 
 const props = defineProps<{ n: number; option: OptionMeta; agent?: boolean }>();
 
-/* Agent levels: the input set holds the prompt, the suggested follow up, and the extension config. */
+/* Agent levels: the input set holds the prompt, the suggested follow up, and the level config. */
 const PROMPT_KEYS = new Set(["prompt", "then"]);
 const agentConfig = computed(() => Object.fromEntries(Object.entries(input.value).filter(([k]) => !PROMPT_KEYS.has(k))));
 const agentPrompt = computed(() => String(input.value.prompt ?? ""));
@@ -190,7 +190,7 @@ async function run() {
     <div v-if="agent" class="example agent">
       <section class="glass">
         <h3>Inputs</h3>
-        <div class="meta">A prompt set and the extension config</div>
+        <div class="meta">A prompt set and the level config</div>
         <h4>Input Examples</h4>
         <div class="sets">
           <button v-for="(name, i) in setNames" :key="name" class="set" :class="{ selected: i === setIndex }" @click="loadSet(i)">{{ name }}</button>
@@ -201,7 +201,7 @@ async function run() {
 
       <section class="glass chat-panel">
         <h3>Agent</h3>
-        <div class="meta">A real pi session in the sandbox repo. One line per thing that happens.</div>
+        <div class="meta">A real Claude Code session in the sandbox repo. One line per thing that happens.</div>
         <AgentChat ref="chat" :key="option.key" :n="n" :option="option.key" :config="agentConfig" :prompt="agentPrompt" :then="agentThen" />
       </section>
 

@@ -4,11 +4,11 @@ Concrete use cases for [Jev](https://typesafe.ai), TypeSafe AI's System One mode
 smart `if` statement to a coding agent that **authors its own choice blocks at runtime**.
 
 Every level ships **three options** — three different concrete builds of the same idea — and every
-option is covered by tests. 201 offline tests, zero runtime dependencies, Node 22+ (Node 24 runs the TypeScript
+option is covered by tests. 215 offline tests, zero runtime dependencies, Node 22+ (Node 24 runs the TypeScript
 natively, no build step for the levels).
 
 ```
-npm test     # 201 tests across core + all 10 levels (offline, deterministic mock backend)
+npm test     # 215 tests across core + all 10 levels (offline, deterministic mock backend)
 npm run demo # print every level's three options running end to end
 ```
 
@@ -20,8 +20,8 @@ npm run web   # → http://127.0.0.1:4399
 
 Ten level pages. Levels 1 to 5 run one call: edit the state, **Run live**, and read the request,
 the typed answers as probability bars, the response body, and a cost table against six chat models.
-Levels 6 to 10 open an **agent window**: a real `pi` session in a copy of `sandbox/`, with the
-level's extension loaded and an explicit tool allowlist. You prompt it, the box locks, Go becomes
+Levels 6 to 10 open an **agent window**: a real Claude Code session on your subscription in a copy of `sandbox/`, with the
+level's hooks and MCP tools loaded and an explicit tool allowlist. You prompt it, the box locks, Go becomes
 Stop, and every tool call, hook decision, and Jev call lands as one line. Click a line for the
 details. The footer shows the model, the LLM cost, the Jev cost, and the context bar.
 
@@ -34,11 +34,11 @@ details. The footer shows the model, the LLM cost, the Jev cost, and the context
 | 10 Agentic Jev | the agent window: ask_jev calls the agent chose to make, and the spend ledger |
 
 Live against OpenRouter when `OPENROUTER_API_KEY` is set (`JEV_BACKEND=mock` forces the offline
-mock for levels 1 to 5). The agent model defaults to `openrouter/google/gemini-3.8-flash`; override
-with `JEV_AGENT_MODEL`. The child pi never inherits `PI_MODEL`/`PI_PROVIDER` from a calling pi
-session. Extensions report every decision on stderr as `JEV_EVENT` lines and as session entries.
+mock for levels 1 to 5). The agent model defaults to `haiku`; override with `JEV_AGENT_MODEL`
+(`sonnet`, or a full model ID). The lab never forwards `ANTHROPIC_API_KEY`, so the agent runs on
+your Claude Code login. Hooks and tools append every decision to an event log the server tails.
 
-Tests: **201 offline** (`npm test`, mock backend) + **10 live** (`npm run test:live`, one per level).
+Tests: **215 offline** (`npm test`, mock backend) + **10 live** (`npm run test:live`, one per level).
 
 ## The ladder
 
@@ -99,13 +99,13 @@ tests/        core.test.ts + one test file per level
 
 ## Levels 6 to 10 in one paragraph
 
-Levels 1 to 5 call Jev from code. Levels 6 to 10 put Jev inside the pi harness, and each step gives
-the agent more say over the questions. Level 6 is two hooks the agent never sees: `tool_call` blocks
-irreversible commands and credential writes, `tool_result` flags injected instructions. Level 7 is
-the `turn_end` hook asking four questions after every turn, with the numbers in code and the agent
+Levels 1 to 5 call Jev from code. Levels 6 to 10 put Jev inside Claude Code, and each step gives
+the agent more say over the questions. Level 6 is two hooks the agent never sees: `PreToolUse` blocks
+irreversible commands and credential writes, `PostToolUse` flags injected instructions. Level 7 is
+the `Stop` hook asking four questions after every turn, with the numbers in code and the agent
 hearing nothing, a notice, a recommendation, or a request. Level 8 is three flat tools, one file
 each, where code reads the file and the agent gets a typed answer, never the content. Level 9 is
 one tool over globs, one call per file in parallel, capped at 255 in code. Level 10 is `ask_jev`
 on anything the agent holds, with a description that carries the schema and prompts that say what
-to ask. Extensions live in `extensions/`, the decision code they import lives in `src/levels/`, and the
+to ask. Hooks and tools live in `claude/`, the decision code they import lives in `src/levels/`, and the
 sandbox they work in lives in `sandbox/`.

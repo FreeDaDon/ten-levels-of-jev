@@ -28,7 +28,7 @@ export interface CutPoint {
   instructions: string;
 }
 
-/** The pick as compaction instructions. Low confidence falls back to pi's default cut. */
+/** The pick as compaction instructions. Low confidence falls back to a plain recency instruction. */
 export function cutPointInstructions(turns: TurnSummary[], answer: ChoiceAnswer, floor = 0.6): CutPoint {
   if (answer.choice === "none" || answer.confidence < floor) {
     return { liveFrom: null, confidence: answer.confidence, instructions: "Summarize the earlier work briefly and keep the most recent turns in detail." };

@@ -7,7 +7,7 @@ import { isAbsolute, relative, resolve, sep } from "node:path";
 import { LIMITS } from "../../core/types.ts";
 import { MAX_FILE_CHARS } from "../level08/read-state.ts";
 
-export const SKIP_DIRS = new Set(["node_modules", ".git", ".sessions", "dist", "build", "coverage", ".pi"]);
+export const SKIP_DIRS = new Set(["node_modules", ".git", ".sessions", "dist", "build", "coverage", ".claude"]);
 const GLOB_CHARS = /[*?[\]{}]/;
 
 export interface Skipped {
