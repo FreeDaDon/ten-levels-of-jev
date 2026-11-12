@@ -19,8 +19,14 @@ const HOOK_TIMEOUT_SECONDS = 40;
 
 export type HookSet = "guard" | "compact";
 
-/** Levels 6 and 7 are hooks. */
-export const LEVEL_HOOKS: Record<number, HookSet> = { 6: "guard", 7: "compact" };
+/** Levels 6, 7, and 10 carry hooks. */
+export const LEVEL_HOOKS: Record<number, HookSet> = { 6: "guard", 7: "compact", 10: "guard" };
+
+/**
+ * Level 10 lets the agent write its own questions and still has its own Bash tool, so the bash gate sits on that tool
+ * too. The lab applies this config; printed settings for your own session default to all three gates.
+ */
+export const LEVEL_DEFAULT_CONFIG: Record<number, object> = { 10: { gates: ["A"] } };
 
 /** Levels 7 to 10 add tools the agent can call. */
 export const LEVEL_TOOLS: Record<number, string[]> = {
@@ -30,13 +36,14 @@ export const LEVEL_TOOLS: Record<number, string[]> = {
   10: ["ask_jev"],
 };
 
-const command = (script: string) => ({ type: "command", command: "node", args: [join(ROOT, "hooks", script)], timeout: HOOK_TIMEOUT_SECONDS });
+const command = (script: string, extra: object = {}) => ({ type: "command", command: "node", args: [join(ROOT, "hooks", script)], timeout: HOOK_TIMEOUT_SECONDS, ...extra });
 
 export function hookSettings(set: HookSet): { hooks: Record<string, unknown[]> } {
   if (set === "guard") {
     return {
       hooks: {
-        PreToolUse: [{ matcher: "Bash|Write|Edit|MultiEdit|NotebookEdit", hooks: [command("guard.ts")] }],
+        // onFailure "block": a crash or a timeout denies the call, the same as the hook's own fail closed path.
+        PreToolUse: [{ matcher: "Bash|Write|Edit|MultiEdit|NotebookEdit", hooks: [command("guard.ts", { onFailure: "block" })] }],
         PostToolUse: [{ matcher: "Read|Bash", hooks: [command("guard.ts")] }],
       },
     };

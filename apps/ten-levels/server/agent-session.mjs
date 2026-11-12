@@ -6,8 +6,11 @@
  * lab never passes ANTHROPIC_API_KEY, and `--bare` is not used because bare mode skips the subscription login
  * and does not run hooks from --settings.
  *
- * The level's hooks and MCP tools write every Jev call and hook decision to an event log, which this module tails
- * and folds into the same event stream the window subscribes to. Claude's stream-json events are translated into
+ * The agent never holds the Jev key. Its hooks and tools call the lab's broker (POST /jev/v1/systemone) with a session
+ * token that works only against this server, only while the session lives, and only up to a call and dollar cap.
+ * Its file permissions are scoped to the session's sandbox copy, and Bash runs in Claude Code's OS sandbox when the
+ * platform has one. The level's hooks and MCP tools write every Jev call and hook decision to an event log, which this
+ * module tails and folds into the same event stream the window subscribes to. Claude's stream-json events are translated into
  * the shape the window already reads: message_end, tool_execution_start, tool_execution_end, stats, agent_settled.
  *
  *   start(config)         copy the sandbox, write the level's settings, return a session
@@ -17,36 +20,44 @@
  *   session.close()       kill the run and remove the sandbox copy
  */
 import { execFileSync, spawn } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { cpSync, mkdirSync, openSync, readSync, closeSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { claudeToolName, hookSettings, LEVEL_HOOKS, mcpConfig } from "../claude/config.ts";
+import { claudeToolName, hookSettings, LEVEL_DEFAULT_CONFIG, LEVEL_HOOKS, mcpConfig } from "../claude/config.ts";
+import { emptyLedger, record, summarize } from "../src/levels/level10/spend.ts";
 
 const APP = fileURLToPath(new URL("../", import.meta.url));
 const SESSIONS_DIR = join(APP, ".sessions");
 const WORK_DIR = join(APP, ".sandboxes");
 const IDLE_KILL_MS = 15 * 60_000;
+/** Each session is a process tree and a sandbox copy. */
+export const MAX_SESSIONS = 4;
 const DEFAULT_WINDOW = 200_000;
 
 /** `haiku`, `sonnet`, or a full model ID. Haiku is the fast workhorse, and the cheapest against your subscription limits. */
 export const agentModel = () => process.env.JEV_AGENT_MODEL || "haiku";
 
 const BASE_ENV = ["PATH", "HOME", "USER", "LOGNAME", "SHELL", "TMPDIR", "LANG", "LC_ALL", "TERM", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"];
-const JEV_KEYS = ["OPENROUTER_API_KEY", "TYPESAFE_API_KEY"];
 
 /**
  * The environment the agent can see. Its Bash tool can print every variable, so Claude Code gets only what a session
- * needs: the shell basics (HOME carries the subscription login), the Jev keys the hooks and tools read, JEV_* settings,
- * and any names listed in JEV_AGENT_ENV, comma separated. ANTHROPIC_API_KEY is never forwarded: it would switch the
- * agent from your subscription to per token billing. Add it to JEV_AGENT_ENV only if you want that.
+ * needs: the shell basics (HOME carries the subscription login), JEV_* settings, the broker address and this
+ * session's token, and any names listed in JEV_AGENT_ENV, comma separated. Neither the Jev keys nor ANTHROPIC_API_KEY
+ * are forwarded: the first would hand the agent your Jev account, the second would move it off your subscription onto
+ * per token billing. Add a key to JEV_AGENT_ENV only if you mean to.
  */
-export function agentEnv(paths, config) {
+export function agentEnv(paths, config, broker = {}) {
   const extra = (process.env.JEV_AGENT_ENV ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-  const names = new Set([...BASE_ENV, ...JEV_KEYS, ...extra]);
+  const names = new Set([...BASE_ENV, ...extra]);
   const env = {};
   for (const [name, value] of Object.entries(process.env)) {
     if (value !== undefined && (names.has(name) || name.startsWith("JEV_"))) env[name] = value;
+  }
+  if (broker.url) {
+    env.JEV_PROXY_URL = broker.url;
+    env.JEV_PROXY_TOKEN = broker.token;
   }
   return {
     ...env,
@@ -59,26 +70,79 @@ export function agentEnv(paths, config) {
   };
 }
 
-/** The scenario's tool list, split into Claude Code's built in tools and the Jev tools the MCP server exposes. */
+/** Built in tools get project scoped rules: a bare `Read` allows every file you can read, your Claude login included. */
+const SCOPED = { Read: "Read(/**)", Edit: "Edit(/**)", Write: "Write(/**)" };
+
+/** The scenario's tool list, split into Claude Code's built in tools, the rules that allow them, and the Jev MCP tools. */
 export function splitTools(tools) {
   const builtIn = tools.filter((t) => ["read", "bash", "edit", "write"].includes(t));
-  return { builtIn: builtIn.map(claudeToolName), mcp: tools.filter((t) => !builtIn.includes(t)) };
+  const names = builtIn.map(claudeToolName);
+  return { builtIn: names, allow: names.map((n) => SCOPED[n] ?? n), mcp: tools.filter((t) => !builtIn.includes(t)) };
+}
+
+const has = (bin) => {
+  try { execFileSync("which", [bin], { stdio: "ignore" }); return true; } catch { return false; }
+};
+
+/** Claude Code's OS sandbox needs Seatbelt (macOS) or bubblewrap and socat (Linux). */
+export const sandboxAvailable = () => process.platform === "darwin" || (process.platform === "linux" && has("bwrap") && has("socat"));
+
+/** Where an agent has no business: your logins and keys, the lab's own session files, the repo's .env. */
+export function secretPaths(home = homedir()) {
+  return [
+    ...[".claude", ".claude.json", ".ssh", ".aws", ".config", ".gnupg", ".netrc", ".npmrc", ".docker", ".kube"].map((d) => join(home, d)),
+    SESSIONS_DIR,
+    join(APP, "..", "..", ".env"),
+  ];
+}
+
+/**
+ * The permission rules and OS sandbox for a session. The deny rules hold on every platform: they cover the built in
+ * Read, Edit, and Write tools, which the OS sandbox does not. The sandbox confines Bash: writes to the sandbox copy,
+ * no reads of the secret paths, no network. JEV_SANDBOX: auto (default) uses it where it exists and says so when it
+ * does not, on refuses to start without it, off skips it.
+ */
+export function guardSettings(mode = process.env.JEV_SANDBOX || "auto", secrets = secretPaths(), available = sandboxAvailable()) {
+  const deny = secrets.flatMap((p) => [`Read(/${p})`, `Read(/${p}/**)`, `Edit(/${p})`, `Edit(/${p}/**)`]);
+  const sandboxed = mode === "on" || (mode === "auto" && available);
+  return {
+    settings: {
+      permissions: { deny },
+      ...(sandboxed
+        ? { sandbox: { enabled: true, failIfUnavailable: mode === "on", allowUnsandboxedCommands: false, filesystem: { denyRead: secrets }, network: { allowedDomains: [] } } }
+        : {}),
+    },
+    sandboxed,
+    warning: sandboxed || mode === "off" ? null
+      : "The OS sandbox is not available here (needs bubblewrap and socat on Linux), so the agent's Bash can read and write anything you can. File tools are still scoped. Install them and restart, or set JEV_SANDBOX=on to refuse to run without it.",
+  };
 }
 
 const sessions = new Map();
+/** Broker tokens, one per live session. A token dies with its session. */
+const tokens = new Map();
 
 export function getSession(id) {
   return sessions.get(id);
+}
+
+export const getByToken = (token) => tokens.get(token);
+export const count = () => sessions.size;
+
+/** A crash leaves sandbox copies and session files behind. They hold nothing worth keeping, so start clean. */
+export function cleanStale() {
+  for (const dir of [WORK_DIR, SESSIONS_DIR]) rmSync(dir, { recursive: true, force: true });
 }
 
 /**
  * `cwd` is the pristine sandbox. Each session gets its own copy under .sandboxes, so an agent that
  * fixes the bug or writes a file never changes what the next session sees. The copy is removed on close.
  */
-export function start({ level, option, tools, cwd, config }) {
-  mkdirSync(SESSIONS_DIR, { recursive: true });
-  const session = new AgentSession({ level, option, tools, cwd, config });
+export function start({ level, option, tools, cwd, config, brokerUrl }) {
+  mkdirSync(SESSIONS_DIR, { recursive: true, mode: 0o700 });
+  const session = new AgentSession({ level, option, tools, cwd, config, brokerUrl });
   sessions.set(session.id, session);
+  tokens.set(session.token, session);
   return session;
 }
 
@@ -86,8 +150,14 @@ const textOfBlocks = (content) =>
   typeof content === "string" ? content : Array.isArray(content) ? content.filter((c) => c?.type === "text").map((c) => c.text).join("\n") : "";
 
 class AgentSession {
-  constructor({ level, option, tools, cwd, config }) {
-    this.id = randomUUID().slice(0, 8);
+  constructor({ level, option, tools, cwd, config, brokerUrl }) {
+    // Unguessable: the id is in every URL and names the session's directories.
+    this.id = randomBytes(16).toString("hex");
+    this.token = randomBytes(32).toString("hex");
+    this.ledger = emptyLedger();
+    this.ledgerShown = 0;
+    this.callCap = Number(process.env.JEV_SESSION_CALL_CAP) || 400;
+    this.usdCap = Number(process.env.JEV_SESSION_USD_CAP) || 0.25;
     this.level = level;
     this.option = option;
     this.model = agentModel();
@@ -98,7 +168,6 @@ class AgentSession {
     this.child = null;
     this.claudeSession = null;
     this.compactRequested = false;
-    this.lastLedger = null;
     this.window = DEFAULT_WINDOW;
     this.cost = 0;
     this.seq = 0;
@@ -118,13 +187,15 @@ class AgentSession {
 
     // Settings live beside the sandbox copy, not in it, so the agent cannot edit its own hooks.
     this.dir = join(SESSIONS_DIR, this.id);
-    mkdirSync(this.dir, { recursive: true });
+    mkdirSync(this.dir, { recursive: true, mode: 0o700 });
     this.paths = { dir: this.dir, cwd: this.cwd, eventLog: join(this.dir, "events.jsonl") };
     writeFileSync(this.paths.eventLog, "");
-    const { builtIn, mcp } = splitTools(tools);
+    const { builtIn, allow, mcp } = splitTools(tools);
     const hooks = LEVEL_HOOKS[level];
+    const guard = guardSettings();
+    if (guard.warning) this.push("jev", { kind: "warning", message: guard.warning });
     this.settingsFile = join(this.dir, "settings.json");
-    writeFileSync(this.settingsFile, JSON.stringify(hooks ? hookSettings(hooks) : {}));
+    writeFileSync(this.settingsFile, JSON.stringify({ ...(hooks ? hookSettings(hooks) : {}), ...guard.settings }));
     this.mcpFile = join(this.dir, "mcp.json");
     writeFileSync(this.mcpFile, JSON.stringify(mcp.length ? mcpConfig(mcp) : { mcpServers: {} }));
     this.args = [
@@ -134,16 +205,28 @@ class AgentSession {
       "--settings", this.settingsFile,
       "--strict-mcp-config", "--mcp-config", this.mcpFile,
       "--tools", builtIn.join(","),
-      "--allowedTools", [...builtIn, ...(mcp.length ? ["mcp__jev"] : [])].join(","),
+      "--allowedTools", [...allow, ...(mcp.length ? ["mcp__jev"] : [])].join(","),
       "--permission-mode", "dontAsk",
     ];
-    this.env = agentEnv(this.paths, config);
+    this.env = agentEnv(this.paths, { ...LEVEL_DEFAULT_CONFIG[level], ...config }, brokerUrl ? { url: brokerUrl, token: this.token } : {});
     this.tailTimer = setInterval(() => this.drainLog(), 100);
     this.touch();
     this.push("session", { id: this.id, level, option, model: this.model, cwd: this.cwd });
   }
 
-  /** New lines from the event log, pushed as `jev` events. A ledger is held back and shown once, when the run ends. */
+  /** One Jev call went through the broker. */
+  charge(usage, questions) {
+    this.ledger = record(this.ledger, usage, questions);
+  }
+
+  /** A reason to refuse the next call, or null. The caps bound what a runaway agent can spend on your Jev account. */
+  overBudget() {
+    if (this.ledger.calls >= this.callCap) return `session limit reached: ${this.callCap} Jev calls (JEV_SESSION_CALL_CAP)`;
+    if (this.ledger.usd >= this.usdCap) return `session limit reached: $${this.usdCap} of Jev spend (JEV_SESSION_USD_CAP)`;
+    return null;
+  }
+
+  /** New lines from the event log, pushed as `jev` events. */
   drainLog() {
     let size;
     try { size = statSync(this.paths.eventLog).size; } catch { return; }
@@ -161,8 +244,7 @@ class AgentSession {
       if (!line) continue;
       let event;
       try { event = JSON.parse(line); } catch { continue; }
-      if (event.kind === "ledger") this.lastLedger = event;
-      else if (event.kind === "compact") { this.compactRequested = true; this.push("jev", event); }
+      if (event.kind === "compact") { this.compactRequested = true; this.push("jev", event); }
       else this.push("jev", event);
     }
   }
@@ -291,7 +373,10 @@ class AgentSession {
         await this.runClaude("/compact");
         this.drainLog();
       }
-      if (this.lastLedger) { this.push("jev", this.lastLedger); this.lastLedger = null; }
+      if (this.ledger.calls > this.ledgerShown) {
+        this.ledgerShown = this.ledger.calls;
+        this.push("jev", { kind: "ledger", at: Date.now(), ...this.ledger, summary: summarize(this.ledger, this.cost) });
+      }
     } finally {
       this.running = false;
       if (!this.closed) this.push("agent_settled", {});
@@ -321,6 +406,7 @@ class AgentSession {
     clearTimeout(this.idleTimer);
     clearInterval(this.tailTimer);
     sessions.delete(this.id);
+    tokens.delete(this.token);
     if (this.closed) return;
     this.closed = true;
     this.push("closed", {});

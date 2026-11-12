@@ -3,9 +3,9 @@
  * The general form. The agent passes its own state, paths for code to read, a command for code to run, and its question block. Code assembles one state, validates, and makes one call. The agent never receives the files or the output, only the answers.
  */
 import { jev } from "../../core/client.ts";
-import { validateQuestions, type Answer, type Questions, type State } from "../../core/types.ts";
+import { validateQuestions, type Answer, type Decide, type Questions, type State } from "../../core/types.ts";
 
-export type Decide = (state: State, questions: Questions) => Promise<{ answers: Record<string, Answer>; usage?: unknown; model?: string }>;
+export type { Decide };
 
 export interface AskResult {
   answers: Record<string, Answer>;

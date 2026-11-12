@@ -225,7 +225,7 @@ test("Config: hooks for levels 6 and 7 are Claude Code's settings shape, and too
   assert.equal(pre.hooks[0].type, "command");
   assert.equal(pre.hooks[0].command, "node");
   assert.match(pre.hooks[0].args[0], /hooks\/guard\.ts$/);
-  assert.deepEqual(LEVEL_HOOKS, { 6: "guard", 7: "compact" });
+  assert.deepEqual(LEVEL_HOOKS, { 6: "guard", 7: "compact", 10: "guard" });
   assert.deepEqual(Object.keys(LEVEL_TOOLS), ["7", "8", "9", "10"]);
   assert.equal(mcpConfig(["ask_jev"]).mcpServers.jev.env.JEV_MCP_TOOLS, "ask_jev");
   assert.equal(claudeToolName("bash"), "Bash");
@@ -245,7 +245,7 @@ test("Lab: the session splits the scenario's tools, and the agent environment ke
   try {
     const env = agentEnv({ dir: "/d", cwd: "/c", eventLog: "/d/events.jsonl" }, { gates: ["A"] });
     assert.equal(env.HOME, "/home/x");
-    assert.equal(env.OPENROUTER_API_KEY, "or-key");
+    assert.equal(env.OPENROUTER_API_KEY, undefined, "the Jev key stays with the server, the agent gets a broker token instead");
     assert.equal(env.ANTHROPIC_API_KEY, undefined);
     assert.equal(env.ANTHROPIC_AUTH_TOKEN, undefined);
     assert.equal(env.AWS_SECRET, undefined);

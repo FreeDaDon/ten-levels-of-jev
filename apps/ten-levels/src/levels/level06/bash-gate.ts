@@ -4,7 +4,10 @@
  */
 import { jev } from "../../core/client.ts";
 import { choice, noul } from "../../core/helpers.ts";
-import type { ChoiceAnswer, NoulAnswer, Questions, State } from "../../core/types.ts";
+import type { ChoiceAnswer, Decide, NoulAnswer } from "../../core/types.ts";
+import { findSecrets } from "./secret-scan.ts";
+
+export type { Decide };
 
 export const BASH_QUESTIONS = {
   effect: choice("What does running `command` in `cwd` do to the machine?", {
@@ -51,10 +54,13 @@ export function gateBash(a: BashGateAnswers, t: BashThresholds = BASH_THRESHOLDS
   return { block: false, reason: `${a.effect.choice} (${a.effect.confidence.toFixed(2)}), destructive ${a.destructive_intent.noul.toFixed(2)}` };
 }
 
-export type Decide = (state: State, questions: Questions) => Promise<{ answers: Record<string, unknown> }>;
-
-/** A: one call before the command runs. `decide` defaults to the shared client; the hook passes a reporting one. */
+/** A: one call before the command runs, after a code pass for credential literals. `decide` defaults to the shared client; the hook passes a reporting one. */
 export async function gateBashCommand(command: string, cwd: string, decide: Decide = (s, q) => jev.systemOne(s, q)): Promise<GateDecision> {
+  // A credential typed into a command is how an agent routes around the write gate with a heredoc. Pattern first, no call.
+  const secrets = findSecrets(command);
+  if (secrets.length) {
+    return { block: true, reason: `the command contains a credential (${secrets.map((s) => s.name).join(", ")}): keep credentials out of commands` };
+  }
   const { answers } = await decide({ command, cwd }, BASH_QUESTIONS);
   return gateBash(answers as unknown as BashGateAnswers);
 }

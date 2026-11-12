@@ -3,11 +3,11 @@
  * The same questions, raw Jev question JSON, over many files. One call per file, every question in each, all in parallel with a cap. Answers come back per path. No file enters the agent's context.
  */
 import { jev } from "../../core/client.ts";
-import { validateQuestions, type Answer, type Questions, type State } from "../../core/types.ts";
+import { validateQuestions, type Answer, type Decide, type Questions } from "../../core/types.ts";
 import { FileStateError, readFileState } from "../level08/read-state.ts";
 import { expandPatterns, pruneFiles, type Skipped } from "./prune.ts";
 
-export type Decide = (state: State, questions: Questions) => Promise<{ answers: Record<string, Answer>; usage?: unknown }>;
+export type { Decide };
 
 export interface FileAnswers {
   path: string;

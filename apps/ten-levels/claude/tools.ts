@@ -16,9 +16,7 @@ import { BLOCK_NOTICE, gateBashCommand } from "../src/levels/level06/index.ts";
 import { compactVerdict, type CompactAnswers } from "../src/levels/level07/index.ts";
 import { askFileBool, askFileChoice, askFileScore, FileStateError } from "../src/levels/level08/index.ts";
 import { askFiles, pickFirstFile } from "../src/levels/level09/index.ts";
-import {
-  ASK_JEV_DESCRIPTION, AskStateError, assembleState, emptyLedger, parseQuestions, record, summarize, type CommandOutput, type Ledger,
-} from "../src/levels/level10/index.ts";
+import { ASK_JEV_DESCRIPTION, AskStateError, assembleState, parseQuestions, type CommandOutput } from "../src/levels/level10/index.ts";
 
 export interface ToolResult {
   content: { type: "text"; text: string }[];
@@ -67,8 +65,6 @@ function runCommand(command: string, dir: string): Promise<CommandOutput> {
     });
   });
 }
-
-let ledger: Ledger = emptyLedger();
 
 const EMPTY_ANSWERS = {
   switched_gears: { type: "noul", noul: 0 }, at_boundary: { type: "noul", noul: 0 },
@@ -205,8 +201,6 @@ export const TOOLS: Tool[] = [
         };
         const { state, summary } = await assembleState({ state: p.state, paths: p.paths, command: p.command }, cwd(), run);
         const result = await decide("ask_jev", state, questions, { summary });
-        ledger = record(ledger, result.usage as any, Object.keys(result.answers).length);
-        report("ledger", { ...ledger, summary: summarize(ledger, 0) });
         return ok({ answers: result.answers, state_summary: summary, usage: result.usage, model: result.model });
       } catch (err) {
         const text = err instanceof AskStateError ? err.message : `ask_jev error: ${(err as Error)?.message ?? err}`;

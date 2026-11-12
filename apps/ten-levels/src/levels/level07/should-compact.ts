@@ -6,7 +6,7 @@ import { noul, score } from "../../core/helpers.ts";
 import type { NoulAnswer, ScoreAnswer } from "../../core/types.ts";
 
 /** What the hook sends. Built in code from the session, no LLM involved. */
-export interface CompactState {
+export type CompactState = {
   /** The latest user message, trimmed. */
   current_request: string;
   /** Earlier user messages plus the last compaction summary, trimmed. */
@@ -14,7 +14,7 @@ export interface CompactState {
   /** The assistant's last text plus the tools it called, trimmed. */
   recent_turn: string;
   tools_this_turn: string[];
-}
+};
 
 export const COMPACT_QUESTIONS = {
   switched_gears: noul("Is `current_request` a different task from `previous_work`?", {

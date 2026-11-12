@@ -16,11 +16,17 @@ import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 import { JevClient } from "../src/core/client.ts";
-import { validateQuestions, type Answer, type Questions, type State } from "../src/core/types.ts";
+import { validateQuestions, type Answer, type Questions, type State, type SystemOneUsage } from "../src/core/types.ts";
 
 let client: JevClient | undefined;
-/** Provider and key resolve once, on first use: TypeSafe first, then OpenRouter. */
-export const jev = () => (client ??= new JevClient());
+/**
+ * Inside the lab, Jev is reached through the lab's broker with a session token, so no key is ever in this process.
+ * Anywhere else the provider and key resolve once, on first use: TypeSafe first, then OpenRouter.
+ */
+export const jev = () =>
+  (client ??= process.env.JEV_PROXY_URL && process.env.JEV_PROXY_TOKEN
+    ? new JevClient({ provider: "typesafe", apiKey: process.env.JEV_PROXY_TOKEN, baseUrl: process.env.JEV_PROXY_URL })
+    : new JevClient());
 
 const baseDir = () => process.env.JEV_STATE_DIR || join(tmpdir(), "jev-claude");
 export const eventLogPath = () => process.env.JEV_EVENT_LOG || join(baseDir(), "events.jsonl");
@@ -47,7 +53,7 @@ export function report(kind: string, payload: Record<string, unknown>): void {
 
 export interface Decision {
   answers: Record<string, Answer>;
-  usage: { input_tokens: number; output_tokens: number; cost?: number };
+  usage: SystemOneUsage;
   model: string;
   ms: number;
 }

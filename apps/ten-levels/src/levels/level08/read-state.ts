@@ -3,16 +3,16 @@
  * Code reads it, refuses binaries and files over the budget, and hands back `{ path, content }`. Every ask_jev_file tool starts here.
  */
 import { readFile, stat } from "node:fs/promises";
-import { isAbsolute, resolve } from "node:path";
+import { confine } from "../../core/paths.ts";
 import { LIMITS } from "../../core/types.ts";
 
 /** Roughly four characters per token. The budget is shared with the questions, so leave room. */
 export const MAX_FILE_CHARS = (LIMITS.TOTAL_TOKEN_BUDGET - 4000) * 4;
 
-export interface FileState {
+export type FileState = {
   path: string;
   content: string;
-}
+};
 
 export class FileStateError extends Error {
   readonly path: string;
@@ -25,9 +25,11 @@ export class FileStateError extends Error {
 
 const looksBinary = (buf: Buffer) => buf.subarray(0, 8192).includes(0);
 
-/** Read one file as state. Errors name the path and the reason, so a tool can report them per file. */
+/** Read one file as state, inside `cwd` only. Errors name the path and the reason, so a tool can report them per file. */
 export async function readFileState(path: string, cwd: string): Promise<FileState> {
-  const full = isAbsolute(path) ? path : resolve(cwd, path);
+  // Resolved through symlinks: a link inside the repo that points outside it is outside.
+  const full = await confine(path, cwd);
+  if (!full) throw new FileStateError(`outside the repo: ${path}`, path);
   let info;
   try {
     info = await stat(full);

@@ -103,6 +103,9 @@ export interface SystemOneResponse {
   [key: string]: unknown;
 }
 
+/** One Jev call, as every level's decision code takes it: the shared client by default, a reporting wrapper inside a hook. */
+export type Decide = (state: State, questions: Questions) => Promise<{ answers: Record<string, Answer>; usage?: unknown; model?: string }>;
+
 /** Client-side validation limits, mirrored from the published API. */
 export const LIMITS = {
   MAX_CHOICE_OPTIONS: 255,

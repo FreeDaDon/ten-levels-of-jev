@@ -4,6 +4,7 @@
  */
 import { glob, stat } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
+import { confine } from "../../core/paths.ts";
 import { LIMITS } from "../../core/types.ts";
 import { MAX_FILE_CHARS } from "../level08/read-state.ts";
 
@@ -35,13 +36,13 @@ export async function expandPatterns(patterns: string[], cwd: string, recursive:
 }
 
 /** What survives, and why each dropped file dropped. Nothing here calls Jev. */
-export async function pruneFiles(paths: string[], cwd: string, cap = LIMITS.MAX_CHOICE_OPTIONS): Promise<{ files: string[]; skipped: Skipped[] }> {
+export async function pruneFiles(paths: string[], cwd: string, cap: number = LIMITS.MAX_CHOICE_OPTIONS): Promise<{ files: string[]; skipped: Skipped[] }> {
   const files: string[] = [];
   const skipped: Skipped[] = [];
   for (const path of paths) {
     const full = isAbsolute(path) ? path : resolve(cwd, path);
     const rel = relative(cwd, full);
-    if (rel.startsWith("..")) { skipped.push({ path, reason: "outside the repo" }); continue; }
+    if (rel === ".." || rel.startsWith(".." + sep) || !(await confine(path, cwd))) { skipped.push({ path, reason: "outside the repo" }); continue; }
     if (rel.split(sep).some((part) => SKIP_DIRS.has(part))) { skipped.push({ path, reason: "skipped directory" }); continue; }
     let info;
     try { info = await stat(full); } catch { skipped.push({ path, reason: "not found" }); continue; }
