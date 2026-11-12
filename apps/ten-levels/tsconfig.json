@@ -9,5 +9,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts"]
+  "include": ["src/**/*.ts", "claude/**/*.ts", "calibration/**/*.ts", "tests/**/*.ts", "server/*.d.mts"]
 }

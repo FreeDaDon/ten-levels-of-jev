@@ -126,7 +126,7 @@ const LEVELS: Record<number, Level> = {
   },
   6: {
     title: "Guardrail Hooks",
-    sub: "Jev in the tool_call and tool_result hooks. The agent never sees the check. Run the lab for the live pi session.",
+    sub: "Jev in the PreToolUse and PostToolUse hooks. The agent never sees the check. Run the lab for the live Claude Code session.",
     options: [
       opt("A", "Bash gate", "rm -rf node_modules .sessions && npm test  (cwd /repo)",
         () => l6.gateBashCommand("rm -rf node_modules .sessions && npm test", "/repo")),
@@ -138,7 +138,7 @@ const LEVELS: Record<number, Level> = {
   },
   7: {
     title: "Should I Compact",
-    sub: "Four questions after every agent turn. Numbers in code, judgment in Jev. Run the lab for the live pi session.",
+    sub: "Four questions after every agent turn. Numbers in code, judgment in Jev. Run the lab for the live Claude Code session.",
     options: [
       opt("A", "Turn end hook", "the work switched from auth reading to writing docs, 8k tokens in context", async () => {
         const state = { current_request: "Write a CONTRIBUTING.md for this repo.", previous_work: "Read the auth files and explained login. Ran the tests.", recent_turn: "Explained validate and reported the failing proration test.", tools_this_turn: ["read", "bash"] };

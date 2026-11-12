@@ -1,6 +1,6 @@
 # Hyper Jev starter
 
-A backend-only Jev integration with the original core, thirty examples, and offline tests. Node 24, TypeScript, zero runtime packages. Use cases are teaching examples, not pre-calibrated production policies.
+A backend-only Jev integration with the original core, thirty examples, and offline tests. Node 22 or later, TypeScript, zero runtime packages. Use cases are teaching examples, not pre-calibrated production policies.
 
 ## Run offline
 
@@ -25,7 +25,7 @@ TypeSafe wins when both keys exist. OpenRouter is used only when the TypeSafe ke
 | `src/decisions/support-routing.ts` | Validated input, reviewable policy, complete result retention |
 | `src/example.ts` | Initialize once, run one request, print metadata without raw customer data |
 | `src/usage-ledger.ts` | Process-local reported/estimated costs, unknowns, failures, and mock counts |
-| `src/levels/level01/` through `level10/` | Thirty examples, three per pattern |
+| `src/levels/level01/` through `level10/` | Thirty standalone examples, three per pattern. Levels 6 to 10 here are backend patterns (adaptive forms, feed filters, decision loops, large taxonomies), not the lab's Claude Code hooks and tools |
 | `tests/` | HTTP-stub tests, policy boundaries, deterministic example tests |
 
 For an existing backend, copy the core and only the needed decision module. Inject one shared client after loading secrets. Preserve the result's raw payloads in restricted storage when required. Do not expose those payloads on a public API just because the service returns them internally.

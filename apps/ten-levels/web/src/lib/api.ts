@@ -8,14 +8,14 @@ export interface OptionMeta {
   inputs: Record<string, unknown>[];
   call: string;
   code: string;
-  /** Agent levels only: the extension file and tool allowlist the session loads. */
-  extension?: string;
+  /** Agent levels only: the hook set and tool allowlist the session loads. */
+  hooks?: string;
   tools?: string[];
 }
 
 export interface LevelPayload {
   n: number;
-  /** Levels 6 to 10 run a pi session instead of a one shot call. */
+  /** Levels 6 to 10 run a Claude Code session instead of a one shot call. */
   agent?: boolean;
   options: OptionMeta[];
 }

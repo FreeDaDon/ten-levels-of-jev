@@ -6,7 +6,7 @@ import { noul, score } from "../../core/helpers.ts";
 import type { NoulAnswer, ScoreAnswer } from "../../core/types.ts";
 
 /** What the hook sends. Built in code from the session, no LLM involved. */
-export interface CompactState {
+export type CompactState = {
   /** The latest user message, trimmed. */
   current_request: string;
   /** Earlier user messages plus the last compaction summary, trimmed. */
@@ -14,7 +14,7 @@ export interface CompactState {
   /** The assistant's last text plus the tools it called, trimmed. */
   recent_turn: string;
   tools_this_turn: string[];
-}
+};
 
 export const COMPACT_QUESTIONS = {
   switched_gears: noul("Is `current_request` a different task from `previous_work`?", {
@@ -47,7 +47,7 @@ export type Tier = "silent" | "notice" | "recommend" | "request";
 
 /**
  * Context tokens, not percent: a 1M window makes percent useless for a short session. Low on
- * purpose so a few file reads cross them. pi's keepRecentTokens must sit below the notice line.
+ * purpose so a few file reads cross them. Measured as growth since the first reply: Claude Code's system prompt and tool list are not compactable.
  */
 export interface Lines {
   notice: number;
@@ -94,11 +94,11 @@ export function tierMessage(d: CompactDecision, usage: Usage): string | null {
   const pct = `${Math.round(usage.tokens / 1000)}k tokens, ${usage.pct.toFixed(1)}% of the window`;
   switch (d.tier) {
     case "notice":
-      return `Context is at ${pct}. ${d.reason} Compacting is optional. If you do, call compact_now with a short note to yourself.`;
+      return `Context is at ${pct}. ${d.reason} Compacting is optional. If you are at a clean point, call compact_now with a short note to yourself, and the user can run /compact.`;
     case "recommend":
-      return `Recommended: compact now. Context is at ${pct}. ${d.reason} Call compact_now with a short note to yourself, then continue.`;
+      return `Recommended: compact now. Context is at ${pct}. ${d.reason} Call compact_now with a short note to yourself, finish the request, and tell the user to run /compact.`;
     case "request":
-      return `Please compact before continuing. Context is at ${pct}. ${d.reason} Call compact_now with a short note to yourself.`;
+      return `Please compact soon. Context is at ${pct}. ${d.reason} Call compact_now with a short note to yourself, finish the request, and tell the user to run /compact.`;
     default:
       return null;
   }

@@ -4,10 +4,10 @@
  */
 import { jev } from "../../core/client.ts";
 import { noul } from "../../core/helpers.ts";
-import type { NoulAnswer, Questions, State } from "../../core/types.ts";
+import type { Decide, NoulAnswer } from "../../core/types.ts";
 import { readFileState } from "./read-state.ts";
 
-export type Decide = (state: State, questions: Questions) => Promise<{ answers: Record<string, unknown>; usage?: unknown }>;
+export type { Decide };
 
 export interface FileBool {
   path: string;

@@ -13,6 +13,16 @@
     "web": "node server/server.mjs",
     "test": "node --test \"tests/**/*.test.ts\"",
     "test:live": "JEV_LIVE=1 JEV_BACKEND=openrouter node --test \"tests/live.test.ts\"",
-    "web:build": "cd web && bun run build"
+    "web:build": "cd web && bun run build",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint src claude server tests calibration",
+    "check": "npm run typecheck && npm run lint && npm test",
+    "calibrate": "node calibration/run.ts",
+    "calibrate:mock": "node calibration/run.ts --mock"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "oxlint": "^1.93.0",
+    "typescript": "^5.9.3"
   }
 }

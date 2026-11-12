@@ -32,9 +32,9 @@ export function compactVerdict(d: CompactDecision, a: CompactAnswers, usage: Usa
       mid_operation: a.mid_operation.noul,
     },
     next_step: should
-      ? "Call compact_now with a short note to yourself, then continue the current request."
+      ? "Call compact_now with a short note to yourself, finish the request, and tell the user to run /compact."
       : d.tier === "notice"
-        ? "Optional. Continue, or call compact_now if you are at a clean point."
+        ? "Optional. Continue, or call compact_now if you are at a clean point and tell the user to run /compact."
         : "Continue. Nothing to do.",
   };
 }

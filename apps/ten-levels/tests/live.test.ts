@@ -8,8 +8,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { JevClient } from "../src/core/client.ts";
-import { choice, noul, score } from "../src/core/helpers.ts";
-import type { ChoiceAnswer, NoulAnswer, ScoreAnswer } from "../src/core/types.ts";
+import type { ChoiceAnswer, NoulAnswer } from "../src/core/types.ts";
 import * as l1 from "../src/levels/level01/index.ts";
 import * as l2 from "../src/levels/level02/index.ts";
 import * as l3 from "../src/levels/level03/index.ts";

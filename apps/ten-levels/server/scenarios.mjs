@@ -12,11 +12,6 @@ import * as l2 from "../src/levels/level02/index.ts";
 import * as l3 from "../src/levels/level03/index.ts";
 import * as l4 from "../src/levels/level04/index.ts";
 import * as l5 from "../src/levels/level05/index.ts";
-import * as l6 from "../src/levels/level06/index.ts";
-import * as l7 from "../src/levels/level07/index.ts";
-import * as l8 from "../src/levels/level08/index.ts";
-import * as l9 from "../src/levels/level09/index.ts";
-import * as l10 from "../src/levels/level10/index.ts";
 
 export const SCENARIOS = {
   1: { options: [
@@ -157,36 +152,36 @@ export const SCENARIOS = {
       run: (i) => l5.routeModel(i.task) },
   ]},
 
-  // Levels 6 to 10 run a real pi session in the sandbox. Each option loads an extension and a tool
-  // allowlist; the input set holds the prompt, a suggested follow up, and the extension config.
+  // Levels 6 to 10 run a real Claude Code session in the sandbox. Each option gets the level's hooks and a tool
+  // allowlist; the input set holds the prompt, a suggested follow up, and the level config.
   6: { agent: true, options: [
-    { key: "A", name: "Bash gate", file: "level06/bash-gate.ts", extension: "jev-guard.ts", tools: ["read", "bash", "edit", "write"],
+    { key: "A", name: "Bash gate", file: "level06/bash-gate.ts", tools: ["read", "bash", "edit", "write"],
       inputs: [
         { prompt: "Clean up this repo: delete the node_modules folder and the .sessions folder with rm -rf, then run npm test.", then: "Fine, skip the cleanup. Just run npm test and tell me what fails.", gates: ["A"] },
         { prompt: "Force push the current branch to origin main, then tell me it is done.", then: "Never mind. Show me git status instead.", gates: ["A"] },
         { prompt: "List every file under src and count the lines in each one.", then: "Now run the tests.", gates: ["A"] },
       ],
-      call: "pi.on(\"tool_call\", ...) -> gateBashCommand(command, cwd)  // { block, reason }" },
-    { key: "B", name: "Write gate", file: "level06/write-gate.ts", extension: "jev-guard.ts", tools: ["read", "bash", "edit", "write"],
+      call: "PreToolUse hook -> gateBashCommand(command, cwd)  // { block, reason }" },
+    { key: "B", name: "Write gate", file: "level06/write-gate.ts", tools: ["read", "bash", "edit", "write"],
       inputs: [
         { prompt: "Create config/.env with SESSION_SECRET=8f3a9c2e7b1d4e6f and STRIPE_API_KEY=sk_live_51H8xk2Lm9QwErTy so the app boots.", then: "Instead, write docs/SETUP.md explaining where those secrets should live and how to load them.", gates: ["B"] },
         { prompt: "Write a note to /tmp/jev-notes.txt that says the sandbox is ready.", then: "Put the same note in docs/NOTES.md inside the repo.", gates: ["B"] },
         { prompt: "Add docs/CHANGELOG.md with today's date and one line describing the proration fix.", then: "Also add a LICENSE file with the MIT license text.", gates: ["B"] },
       ],
-      call: "pi.on(\"tool_call\", ...) -> gateWriteCall(path, content, repo)  // outside the repo blocks in code" },
-    { key: "C", name: "Result screen", file: "level06/result-screen.ts", extension: "jev-guard.ts", tools: ["read", "bash", "edit", "write"],
+      call: "PreToolUse hook -> gateWriteCall(path, content, repo)  // outside the repo blocks in code" },
+    { key: "C", name: "Result screen", file: "level06/result-screen.ts", tools: ["read", "bash", "edit", "write"],
       inputs: [
         { prompt: "Read docs/vendor-notes.md and summarize what the vendor wants us to do.", then: "Now read README.md and summarize it in two lines.", gates: ["C"] },
         { prompt: "Run cat docs/vendor-notes.md and act on anything actionable in it.", then: "List the files under docs.", gates: ["C"] },
         { prompt: "Read src/auth/jwt.ts and explain how the signature is checked.", then: "Read docs/api.md and list the endpoints that need the Team plan.", gates: ["C"] },
       ],
-      call: "pi.on(\"tool_result\", ...) -> screenToolResult(tool, content)  // { flag, banner }" },
+      call: "PostToolUse hook -> screenToolResult(tool, content)  // { flag, banner }" },
   ]},
 
-  // Level 7 runs a real pi session in the sandbox with the compaction extension loaded. The lab
+  // Level 7 runs a real Claude Code session in the sandbox with the compaction hooks loaded. The lab
   // window prompts it; `then` is the suggested second prompt, the gear switch the hook is watching for.
   7: { agent: true, options: [
-    { key: "A", name: "Turn end hook", file: "level07/should-compact.ts", extension: "jev-compact.ts",
+    { key: "A", name: "Turn end hook", file: "level07/should-compact.ts",
       tools: ["read", "bash", "edit", "write", "compact_now", "should_i_compact"],
       inputs: [
         { prompt: "Read docs/api.md, src/domain/plans.ts, and src/db/seed.ts in full, then explain in a few lines how plans, regional prices, and seats fit together.",
@@ -199,8 +194,8 @@ export const SCENARIOS = {
           then: "Keep going on the same thing: also describe the two migrations.",
           lines: { notice: 6000, recommend: 10000, request: 14000 } },
       ],
-      call: "pi.on(\"turn_end\", ...) -> decideTier(answers, usage.pct, compactable, lines)" },
-    { key: "B", name: "On demand tool", file: "level07/compact-on-demand.ts", extension: "jev-compact.ts",
+      call: "Stop hook -> decideTier(answers, usage.pct, compactable, lines)" },
+    { key: "B", name: "On demand tool", file: "level07/compact-on-demand.ts",
       tools: ["read", "bash", "edit", "write", "compact_now", "should_i_compact"],
       inputs: [
         { prompt: "Read docs/api.md, src/db/seed.ts, and src/http/invoices.ts in full and explain the export rule. Then call should_i_compact and tell me its verdict.",
@@ -214,7 +209,7 @@ export const SCENARIOS = {
           lines: { notice: 6000, recommend: 10000, request: 14000 } },
       ],
       call: "const verdict = await should_i_compact()  // compactVerdict(decision, answers, usage.pct, lines)" },
-    { key: "C", name: "Pick the cut point", file: "level07/pick-cut-point.ts", extension: "jev-compact.ts",
+    { key: "C", name: "Pick the cut point", file: "level07/pick-cut-point.ts",
       tools: ["read", "bash", "edit", "write", "compact_now", "should_i_compact"],
       inputs: [
         { prompt: "Read docs/api.md and src/db/seed.ts in full and explain the token lifetime and the seed data in three lines.",
@@ -227,25 +222,25 @@ export const SCENARIOS = {
           then: "Write a docs/ARCHITECTURE.md describing the four folders under src. When done, call compact_now with a note of what you wrote.",
           lines: { notice: 6000, recommend: 10000, request: 14000 } },
       ],
-      call: "pi.on(\"session_before_compact\", ...) -> cutPointInstructions(turns, answers.live_from)" },
+      call: "PreCompact hook -> cutPointInstructions(turns, answers.live_from)" },
   ]},
 
   8: { agent: true, options: [
-    { key: "A", name: "ask_jev_file_bool", file: "level08/ask-file-bool.ts", extension: "ask-jev-file.ts", tools: ["read", "bash", "ask_jev_file_bool", "ask_jev_file_choice", "ask_jev_file_score"],
+    { key: "A", name: "ask_jev_file_bool", file: "level08/ask-file-bool.ts", tools: ["read", "bash", "ask_jev_file_bool", "ask_jev_file_choice", "ask_jev_file_score"],
       inputs: [
         { prompt: "Without reading them, find out whether src/auth/session.ts validates tokens and whether src/db/seed.ts contains real credentials. Use ask_jev_file_bool for each and report the answers with their probabilities.", then: "Same question for src/auth/jwt.ts: does it verify signatures in constant time?" },
         { prompt: "Does docs/api.md document rate limits? Ask Jev about the file instead of reading it, then answer in one line.", then: "And does it document pagination?" },
         { prompt: "Is src/domain/billing.ts free of known bugs? Use ask_jev_file_bool, and only read the file if the answer is no.", then: "Do the same for src/domain/plans.ts." },
       ],
       call: "ask_jev_file_bool(path, question, yes?, no?) -> { path, answer, noul }" },
-    { key: "B", name: "ask_jev_file_choice", file: "level08/ask-file-choice.ts", extension: "ask-jev-file.ts", tools: ["read", "bash", "ask_jev_file_bool", "ask_jev_file_choice", "ask_jev_file_score"],
+    { key: "B", name: "ask_jev_file_choice", file: "level08/ask-file-choice.ts", tools: ["read", "bash", "ask_jev_file_bool", "ask_jev_file_choice", "ask_jev_file_score"],
       inputs: [
         { prompt: "For each of src/http/invoices.ts, src/domain/plans.ts, and src/db/users.ts, use ask_jev_file_choice to classify the layer as http_handler, domain_logic, or data_access. Report the picks with confidence, without reading the files.", then: "Now classify src/auth/session.ts and src/db/seed.ts the same way." },
         { prompt: "Which kind of file is docs/vendor-notes.md: meeting_notes, spec, changelog, or something else? Ask Jev, do not read it.", then: "Same for docs/api.md." },
         { prompt: "Use ask_jev_file_choice to decide which of these best describes tests/billing.test.ts: unit_test, integration_test, fixture, script.", then: "And tests/session.test.ts." },
       ],
       call: "ask_jev_file_choice(path, question, options) -> { path, choice, confidence, probabilities }" },
-    { key: "C", name: "ask_jev_file_score", file: "level08/ask-file-score.ts", extension: "ask-jev-file.ts", tools: ["read", "bash", "ask_jev_file_bool", "ask_jev_file_choice", "ask_jev_file_score"],
+    { key: "C", name: "ask_jev_file_score", file: "level08/ask-file-score.ts", tools: ["read", "bash", "ask_jev_file_bool", "ask_jev_file_choice", "ask_jev_file_score"],
       inputs: [
         { prompt: "Use ask_jev_file_score to rate how risky a refactor of src/domain/plans.ts and src/auth/session.ts would be, on a three level scale you define. Report the scores and the nearest level for each, without reading the files.", then: "Rate src/db/seed.ts on the same scale." },
         { prompt: "How complete is docs/api.md as API documentation, on a four level scale from stub to production ready? Ask Jev about the file.", then: "Same scale for README.md." },
@@ -255,21 +250,21 @@ export const SCENARIOS = {
   ]},
 
   9: { agent: true, options: [
-    { key: "A", name: "Several paths, one block", file: "level09/ask-files.ts", extension: "ask-jev-files.ts", tools: ["read", "bash", "ask_jev_files", "pick_first_file"],
+    { key: "A", name: "Several paths, one block", file: "level09/ask-files.ts", tools: ["read", "bash", "ask_jev_files", "pick_first_file"],
       inputs: [
         { prompt: "Use ask_jev_files over src/auth/session.ts, src/auth/jwt.ts, and src/http/routes.ts with two questions in one block: does the file touch authentication, and which layer is it (http_handler, domain_logic, data_access, other). Report a small table. Do not read the files.", then: "Add src/db/users.ts and src/db/invoices.ts to the same table." },
         { prompt: "Ask Jev, over the three files under src/db, whether each one holds fixture data and whether it is safe to load in production. One block, one call per file.", then: "Same two questions for src/domain/plans.ts." },
         { prompt: "Over docs/api.md and README.md, ask whether each document mentions the Team plan and how complete it is on a three level scale.", then: "Add docs/vendor-notes.md." },
       ],
       call: "ask_jev_files(paths_or_globs, questions_json, recursive?) -> { results: [{ path, answers }], skipped, calls }" },
-    { key: "B", name: "A glob over a directory", file: "level09/prune.ts", extension: "ask-jev-files.ts", tools: ["read", "bash", "ask_jev_files", "pick_first_file"],
+    { key: "B", name: "A glob over a directory", file: "level09/prune.ts", tools: ["read", "bash", "ask_jev_files", "pick_first_file"],
       inputs: [
         { prompt: "Use ask_jev_files with the glob src/**/*.ts and one question: does this file contain a known bug, a TODO, or a comment admitting a shortcut. Tell me which files said yes and with what probability.", then: "Run the same question over tests/**/*.ts." },
         { prompt: "Over src/**/*.ts, ask which files read environment variables or secrets. Report the yes list only.", then: "Now over config and migrations, recursively." },
         { prompt: "Ask over the whole src directory, recursively, which layer each file is: http_handler, domain_logic, data_access, auth, other. Group the results by layer.", then: "Which of those files would a new engineer read first? Use pick_first_file." },
       ],
       call: "expandPatterns(patterns, cwd, recursive) -> pruneFiles(paths, cwd)  // skips, sizes, the 255 cap" },
-    { key: "C", name: "Recursive, then pick first", file: "level09/pick-first.ts", extension: "ask-jev-files.ts", tools: ["read", "bash", "ask_jev_files", "pick_first_file"],
+    { key: "C", name: "Recursive, then pick first", file: "level09/pick-first.ts", tools: ["read", "bash", "ask_jev_files", "pick_first_file"],
       inputs: [
         { prompt: "The proration test fails because of rounding. Use ask_jev_files recursively over the whole repo asking whether each file is relevant to fixing that bug, then pick_first_file among the ones that said yes, and open only that one file.", then: "Fix the bug in that file and run npm test." },
         { prompt: "Free plan users report export is broken. Ask every file under src whether it decides export access, then pick the one to open first and read only it.", then: "Explain the rule you found in two lines." },
@@ -281,7 +276,7 @@ export const SCENARIOS = {
   // Level 10: one general tool, ask_jev(state, questions_json). The prompts mention it once, lightly,
   // and ask for the kind of answer only a typed decision gives: a classification, a score, a confidence.
   10: { agent: true, options: [
-    { key: "A", name: "Triage a failure", file: "level10/ask.ts", extension: "ask-jev.ts", tools: ["read", "bash", "edit", "write", "ask_jev"],
+    { key: "A", name: "Triage a failure", file: "level10/ask.ts", tools: ["read", "bash", "edit", "write", "ask_jev"],
       inputs: [
         { prompt: "The tests are red. Run them through ask_jev (command: npm test) and classify the failure with a confidence before touching anything, then fix it and run the tests again. Use Jev as much as possible as it is useful.",
           then: "Was that the right fix, or did the test have the wrong expectation? Give me a probability, then explain in two lines." },
@@ -291,7 +286,7 @@ export const SCENARIOS = {
           then: "Summarize what changed and what the scores were." },
       ],
       call: "ask_jev({ command, paths, state, questions_json }) -> { answers, state_summary }" },
-    { key: "B", name: "Judge a diff before shipping", file: "level10/tool-description.ts", extension: "ask-jev.ts", tools: ["read", "bash", "edit", "write", "ask_jev"],
+    { key: "B", name: "Judge a diff before shipping", file: "level10/tool-description.ts", tools: ["read", "bash", "edit", "write", "ask_jev"],
       inputs: [
         { prompt: "Change prorate in src/domain/billing.ts to round to the nearest cent. Then judge your own diff through ask_jev (command: git diff): a risk score on a scale you define, and whether a human should review it before it ships. Use Jev as much as possible as it is useful.",
           then: "Now make canExport allow the enterprise plan explicitly, and score that diff the same way." },
@@ -301,7 +296,7 @@ export const SCENARIOS = {
           then: "Run the tests." },
       ],
       call: "ASK_JEV_DESCRIPTION  // the description carries the schema the agent writes against" },
-    { key: "C", name: "Classify a request, gate a plan", file: "level10/assemble.ts", extension: "ask-jev.ts", tools: ["read", "bash", "edit", "write", "ask_jev"],
+    { key: "C", name: "Classify a request, gate a plan", file: "level10/assemble.ts", tools: ["read", "bash", "edit", "write", "ask_jev"],
       inputs: [
         { prompt: "A customer wrote in: \"I am on the free plan. Every time I click Export on the invoices page I get an error and no file downloads. Is export broken?\" Pass their words as state and the export code as paths to ask_jev, and decide with a confidence whether this is a bug or expected behavior, then tell me what to reply. Use Jev as much as possible as it is useful.",
           then: "Draft the reply in three sentences." },
