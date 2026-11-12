@@ -13,7 +13,7 @@ export const BASH_QUESTIONS = {
   effect: choice("What does running `command` in `cwd` do to the machine?", {
     read_only: "Lists, reads, searches, tests, builds into a scratch directory; nothing durable changes",
     reversible: "Changes files or state that git or a reinstall can restore: edits, installs, generated output",
-    irreversible: "Deletes or overwrites things with no way back: removing directories, force pushing, dropping data, rewriting history",
+    irreversible: "Deletes or overwrites things with no way back: removing directories, force pushing, dropping data, rewriting history, wiping permissions or ownership recursively",
   }),
   destructive_intent: noul("Does `command` aim to remove or wipe something rather than build or inspect?", {
     true: "rm -rf, drop, purge, force, reset --hard, truncate, overwriting real data",

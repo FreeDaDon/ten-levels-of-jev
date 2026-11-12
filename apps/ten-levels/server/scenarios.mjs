@@ -12,11 +12,6 @@ import * as l2 from "../src/levels/level02/index.ts";
 import * as l3 from "../src/levels/level03/index.ts";
 import * as l4 from "../src/levels/level04/index.ts";
 import * as l5 from "../src/levels/level05/index.ts";
-import * as l6 from "../src/levels/level06/index.ts";
-import * as l7 from "../src/levels/level07/index.ts";
-import * as l8 from "../src/levels/level08/index.ts";
-import * as l9 from "../src/levels/level09/index.ts";
-import * as l10 from "../src/levels/level10/index.ts";
 
 export const SCENARIOS = {
   1: { options: [

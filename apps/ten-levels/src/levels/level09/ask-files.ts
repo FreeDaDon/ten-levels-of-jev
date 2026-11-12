@@ -36,7 +36,7 @@ export function parseQuestions(questionsJson: string): Questions {
 
 /** Run `fn` over `items` with at most `limit` in flight. Results keep the input order. */
 export async function parallel<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
-  const out: R[] = new Array(items.length);
+  const out = Array.from<R>({ length: items.length });
   let next = 0;
   const worker = async () => {
     while (next < items.length) {

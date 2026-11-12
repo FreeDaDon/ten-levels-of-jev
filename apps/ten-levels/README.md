@@ -4,11 +4,11 @@ Concrete use cases for [Jev](https://typesafe.ai), TypeSafe AI's System One mode
 smart `if` statement to a coding agent that **authors its own choice blocks at runtime**.
 
 Every level ships **three options** — three different concrete builds of the same idea — and every
-option is covered by tests. 215 offline tests, zero runtime dependencies, Node 22+ (Node 24 runs the TypeScript
+option is covered by tests. 251 offline tests, zero runtime dependencies (typescript, @types/node and oxlint are dev tools), Node 22+ (Node 24 runs the TypeScript
 natively, no build step for the levels).
 
 ```
-npm test     # 215 tests across core + all 10 levels (offline, deterministic mock backend)
+npm test     # 251 tests across core + all 10 levels (offline, deterministic mock backend)
 npm run demo # print every level's three options running end to end
 ```
 
@@ -38,7 +38,7 @@ mock for levels 1 to 5). The agent model defaults to `haiku`; override with `JEV
 (`sonnet`, or a full model ID). The lab never forwards `ANTHROPIC_API_KEY`, so the agent runs on
 your Claude Code login. Hooks and tools append every decision to an event log the server tails.
 
-Tests: **215 offline** (`npm test`, mock backend) + **10 live** (`npm run test:live`, one per level).
+Tests: **251 offline** (`npm test`, mock backend) + **10 live** (`npm run test:live`, one per level).
 
 ## The ladder
 
@@ -81,7 +81,10 @@ declared option and sum to ~1, choices are declared options). A direct TypeSafe 
 src/core/     types.ts (wire contract + validation), client.ts, mock.ts, helpers.ts (noul/choice/score)
 src/levels/   level01/ .. level10/ — one file per option (A, B, C), questions and thresholds in that file
 src/demo.ts   runs all 10 levels
-tests/        core.test.ts + one test file per level
+tests/        core.test.ts + one test file per level, plus claude, hardening, server, calibration and starter-sync
+calibration/  labeled fixtures and the threshold sweep behind `npm run calibrate`
+claude/       hooks, the MCP server, and the config printer for Claude Code (levels 6 to 10)
+server/       the lab API, the Jev broker, the request guard, the Claude Code session manager
 ```
 
 ## The rules this codebase follows (from the TypeSafe docs and field reports)

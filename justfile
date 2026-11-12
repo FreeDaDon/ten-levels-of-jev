@@ -1,5 +1,5 @@
 set dotenv-load := true
-set shell := ["/bin/zsh", "-ic"]
+set shell := ["bash", "-cu"]
 
 project_root := justfile_directory()
 app := project_root + "/apps/ten-levels"
@@ -14,12 +14,24 @@ default:
 web:
     cd "{{app}}/web" && bun run build
     lsof -tiTCP:4399 -sTCP:LISTEN | xargs -r kill
-    (sleep 1 && open http://127.0.0.1:4399) &!
+    (sleep 1; xdg-open http://127.0.0.1:4399 || open http://127.0.0.1:4399) >/dev/null 2>&1 &
     cd "{{app}}" && npm run -s web
 
 # Vite dev server with hot reload, proxied to a running `just web`.
 dev:
     cd "{{app}}/web" && bun run dev
+
+# Everything CI runs: typecheck, lint, and the offline suite.
+check:
+    cd "{{app}}" && npm run -s check
+
+# Typecheck the app. No emit, strict.
+typecheck:
+    cd "{{app}}" && npm run -s typecheck
+
+# Measure the level 6 gate thresholds against labeled fixtures on live Jev, about 70 calls. Add --mock to check plumbing.
+calibrate *args:
+    cd "{{app}}" && node calibration/run.ts {{args}}
 
 # Lint the Vue app with oxlint.
 lint:
@@ -73,7 +85,7 @@ demo:
 demo-live:
     cd "{{app}}" && npm run -s demo:live
 
-# 215 offline tests on the mock.
+# 251 offline tests on the mock.
 test:
     cd "{{app}}" && npm run -s test
 

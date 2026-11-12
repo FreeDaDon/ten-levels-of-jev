@@ -28,7 +28,7 @@ apps/ten-levels/
 ├── sandbox/           # the repo the agents work in
 ├── server/            # the API and the Claude Code session manager, node:http only
 ├── web/               # the Vue lab; bun installs its dependencies
-└── tests/             # 215 offline tests on the mock, 10 live tests
+└── tests/             # 251 offline tests on the mock, 10 live tests
 justfile               # every recipe; loads .env
 ```
 
@@ -40,7 +40,7 @@ justfile               # every recipe; loads .env
 - For items requiring user input (the API key), ask the user with sensible defaults.
 - Do NOT read or display API key values — only confirm they are set.
 - Never start `just web` or `just dev` from this command; only verify readiness.
-- The app itself has zero runtime dependencies. Only `web/` needs an install.
+- The app has no runtime dependencies. `npm ci` in `APP_DIR` installs dev tools only, and `web/` needs its own install.
 - Levels 1 to 5 work offline on the mock. Levels 6 to 10 need Claude Code signed in with a subscription and an OpenRouter key; if either is missing, say so and continue, the rest of the lab still works.
 
 ## Workflow
@@ -66,7 +66,7 @@ Then the standard tools:
 
 ### Step 3 — Install Dependencies
 
-9. Run `cd WEB_DIR && bun install`. This is the only install. Report the count of packages from bun's output.
+9. Run `cd APP_DIR && npm ci` (typescript, @types/node, and oxlint: dev tools for `just check`; the levels have no runtime dependencies), then `cd WEB_DIR && bun install`. Report the package counts from each.
 
 ### Step 4 — Verify Configuration
 
@@ -77,10 +77,10 @@ Then the standard tools:
 
 ### Step 5 — Verify Readiness
 
-14. Run `just test` from the repo root. Expect 215 passing, 0 failures, and 10 live tests skipped; report the pass count. This uses the mock and needs no key.
+14. Run `just check` from the repo root (typecheck, lint, tests). Expect 251 passing, 0 failures, and 10 live tests skipped; report the pass count. This uses the mock and needs no key.
 15. Run `cd SANDBOX_DIR && npm test` and expect exactly one failure, the proration test. Report pass and fail counts.
 16. Confirm `just --list` shows `web`, `dev`, `jev1` through `jev10`, `test`, `test-live`, `demo`, `heroes`, `lint`. Do not run `web` or `dev`.
-17. If Claude Code is installed, confirm `claude --version` prints 2.1.295 or later.
+17. If Claude Code is installed, confirm `claude --version` prints 2.1.295 or later. On Linux, also check `command -v bwrap && command -v socat`: they let the agent's Bash run in Claude Code's OS sandbox. If either is missing, say the lab will run with a warning and the agent's Bash unconfined, and offer `apt install bubblewrap socat`. Do not run it yourself.
 
 ### Step 6 — Report
 

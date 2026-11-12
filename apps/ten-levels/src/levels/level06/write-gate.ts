@@ -30,7 +30,8 @@ export interface WriteGateAnswers {
   contains_secret: NoulAnswer;
 }
 
-export const WRITE_THRESHOLDS = { secret: 0.7 };
+/** 0.5, not 0.7: on the calibration fixtures 0.7 missed a passphrase that 0.5 caught with no false alarms. A missed credential costs more than a review. */
+export const WRITE_THRESHOLDS = { secret: 0.5 };
 
 /** The lexical check, no filesystem access. The gate itself uses `confine`, which also follows symlinks. */
 export function insideRepo(path: string, repo: string): boolean {

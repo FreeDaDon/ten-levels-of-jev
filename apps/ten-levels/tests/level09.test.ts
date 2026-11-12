@@ -50,7 +50,7 @@ test("L9 B: globs and directories expand, skip dirs and junk drop with a reason,
 
 test("L9 A: one call per file with every question, results per path, in parallel", async () => {
   const calls: State[] = [];
-  const decide = async (state: State, questions: Questions) => { calls.push(state); return { answers: { touches_auth: { type: "noul", noul: 0.5 } } as any }; };
+  const decide = async (state: State, _questions: Questions) => { calls.push(state); return { answers: { touches_auth: { type: "noul", noul: 0.5 } } as any }; };
   const r = await l9.askFiles(["src/auth/session.ts", "src/auth/jwt.ts", "src/http/routes.ts"], Q, SANDBOX, { decide });
   assert.equal(r.calls, 3);
   assert.deepEqual(r.results.map((x) => x.path), ["src/auth/jwt.ts", "src/auth/session.ts", "src/http/routes.ts"]);
